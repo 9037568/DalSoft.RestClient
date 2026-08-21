@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json;
 using DalSoft.RestClient.Handlers;
+using DalSoft.RestClient.Handlers.Mcp;
 using DalSoft.RestClient.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -135,15 +136,17 @@ namespace DalSoft.RestClient.DependencyInjection
             return config;
         }
 
-        public static RestClientFactoryConfig UseTwitterHandler(this RestClientFactoryConfig config, string consumerKey, string consumerKeySecret, string accessToken, string accessTokenSecret)
+        /// <summary>Talk to an MCP server over the Streamable HTTP transport, the session is shared so it survives IHttpClientFactory handler rotation</summary>
+        public static RestClientFactoryConfig UseMcpHandler(this RestClientFactoryConfig config, McpHandlerOptions options = null, McpSession session = null)
         {
-            DelegatingHandler HandlerFactory() => new TwitterHandler(consumerKey, consumerKeySecret, accessToken, accessTokenSecret);
+            session = session ?? new McpSession(); // One session per registration, not per handler instance
+            DelegatingHandler HandlerFactory() => new McpHandler(options, session);
 
             config.HttpClientBuilder.AddHttpMessageHandler(HandlerFactory);
 
             return config;
         }
-        
+
         public static RestClientFactoryConfig UseCookieHandler(this RestClientFactoryConfig config)
         {
             return UseCookieHandler(config, new CookieContainer());

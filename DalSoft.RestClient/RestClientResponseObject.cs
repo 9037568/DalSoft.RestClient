@@ -50,6 +50,8 @@ namespace DalSoft.RestClient
             _currentObject = nodeToWrap;
         }
 
+        internal IJsonSerializer Serializer => _serializer ?? SystemTextJsonSerializer.Default;
+
         private void EnsureParsed() //Parse lazily so typed casts and non json access never pay for building the DOM
         {
             if (_parseAttempted || !_expectJson) return;

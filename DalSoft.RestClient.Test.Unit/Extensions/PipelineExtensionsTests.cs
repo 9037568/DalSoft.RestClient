@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using DalSoft.RestClient.Handlers;
 using DalSoft.RestClient.Serialization;
 using Newtonsoft.Json;
+using DalSoft.RestClient.Handlers.Mcp;
 using NUnit.Framework;
 using System.Text.Json;
 
@@ -191,16 +192,6 @@ namespace DalSoft.RestClient.Test.Unit.Extensions
         }
 
         [Test]
-        public void UseTwitterHandler_AddHandlers_CorrectlyAddHandlers()
-        {
-            var config = new Config()
-                .UseTwitterHandler(consumerKey:"consumerKey", consumerKeySecret:"consumerKeySecret", accessToken:"accessToken", accessTokenSecret:"accessTokenSecret");
-            
-            Assert.That(config.Pipeline.Count(), Is.EqualTo(2));
-            Assert.That(config.Pipeline.ElementAt(1), Is.InstanceOf<TwitterHandler>());
-        }
-
-        [Test]
         public void ExpectJsonResponse_StateBagPropertyNull_ReturnsFalse()
         {
             Assert.False(new HttpRequestMessage().ExpectJsonResponse());
@@ -235,6 +226,21 @@ namespace DalSoft.RestClient.Test.Unit.Extensions
             request.SetConfig(expected);
 
             Assert.AreSame(expected, request.GetConfig());
+        }
+    
+
+        [Test]
+        public void UseMcpHandler_AddHandlers_CorrectlyAddHandlers()
+        {
+            var session = new McpSession();
+            var config = new Config()
+                .UseMcpHandler(new McpHandlerOptions { ClientName = "Test" }, session);
+
+            var mcpHandler = config.Pipeline.ElementAt(1) as McpHandler;
+
+            Assert.That(config.Pipeline.Count(), Is.EqualTo(2));
+            Assert.NotNull(mcpHandler);
+            Assert.AreSame(session, mcpHandler.Session);
         }
     }
 }

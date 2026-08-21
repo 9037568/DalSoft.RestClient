@@ -14,7 +14,7 @@
 
       Everything you need to know: https://restclient.dalsoft.io/
     </Description>
-    <VersionPrefix>5.0.0</VersionPrefix>
+    <VersionPrefix>5.1.0</VersionPrefix>
     <!-- https://docs.microsoft.com/en-us/dotnet/standard/library-guidance/cross-platform-targeting -->
     <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
     <AssemblyName>DalSoft.RestClient</AssemblyName>
@@ -25,6 +25,17 @@
     <Owners>DalSoft</Owners>
     <Authors>DalSoft, joakimjm</Authors>
     <PackageReleaseNotes>
+      5.1.0 - MCP (Model Context Protocol) and Typed Clients.
+
+      McpHandler - call MCP servers over the Streamable HTTP transport with Config.UseMcpHandler() or AddRestClient(...).UseMcpHandler(). The JSON-RPC envelope, lazy session initialization, Mcp-Session-Id / MCP-Protocol-Version headers, SSE response streams (with OnNotification for progress) and re-initialization on 404 are all handled for you, and the JSON-RPC result is unwrapped so the response is just the result. JSON-RPC errors throw McpException.
+
+      IRestClient MCP helpers - Ping, ListTools, CallTool, ListResources, ReadResource, ListPrompts, GetPrompt and McpRequest, each with a strongly typed twin. CallToolJson returns a tool's JSON result (structuredContent or the text content parsed as JSON) dynamically typed like any other RestClient response, or strongly typed via CallToolJson&lt;T&gt;, and throws McpException when the tool returns isError.
+
+      Typed clients - AddRestClient&lt;TClient&gt;() and AddRestClient&lt;TClient, TImplementation&gt;() register a typed client with a configured IRestClient injected into its constructor, mirroring AddHttpClient&lt;TClient&gt;(). No more wrapping HttpClient in HttpClientWrapper yourself.
+
+      Breaking changes:
+      - TwitterHandler and UseTwitterHandler() have been removed, the Twitter API v1.1 it targeted is no longer available.
+
       5.0.0 - System.Text.Json is now the default serializer with stock System.Text.Json behaviour (plus trailing commas and comments accepted when reading, because real world systems are less than perfect).
 
       Big performance improvements - requests and responses are serialized straight to and from utf-8 bytes skipping intermediate strings, the JSON DOM is only built if you use dynamic access (typed casts skip it entirely), arrays are wrapped lazily, and the request pipeline allocates far less. Request bodies and typed responses now allocate about the same as using HttpClient and System.Text.Json by hand. Also now multi targets netstandard2.0 and net8.0.

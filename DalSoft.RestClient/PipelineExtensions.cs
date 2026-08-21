@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Text.Json;
 using DalSoft.RestClient.DependencyInjection;
 using DalSoft.RestClient.Handlers;
+using DalSoft.RestClient.Handlers.Mcp;
 using DalSoft.RestClient.Serialization;
 using Newtonsoft.Json;
 
@@ -163,9 +164,10 @@ namespace DalSoft.RestClient
             return UseHandler(config, new RetryHandler(maxRetries, waitToRetryInSeconds, maxWaitToRetryInSeconds, backOffStrategy));
         }
 
-        public static Config UseTwitterHandler(this Config config, string consumerKey, string consumerKeySecret, string accessToken, string accessTokenSecret)
+        /// <summary>Talk to an MCP server over the Streamable HTTP transport, the RestClient base uri should be the MCP endpoint</summary>
+        public static Config UseMcpHandler(this Config config, McpHandlerOptions options = null, McpSession session = null)
         {
-            return UseHandler(config, new TwitterHandler(consumerKey, consumerKeySecret, accessToken, accessTokenSecret));
+            return UseHandler(config, new McpHandler(options, session));
         }
 
         public static Config UseCookieHandler(this Config config)

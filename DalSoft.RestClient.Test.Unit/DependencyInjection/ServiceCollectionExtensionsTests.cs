@@ -182,5 +182,164 @@ namespace DalSoft.RestClient.Test.Unit.DependencyInjection
 
             Assert.That(lastRequest.Headers.GetValues("name").FirstOrDefault(), Is.EqualTo(myclient1));
         }
+    
+
+        [Test]
+        public void AddRestClientTClient_Resolve_InjectsIRestClient()
+        {
+            var serviceCollection = new ServiceCollection();
+            serviceCollection.AddRestClient<TypedClient>("http://dalsoft.co.uk");
+
+            var typedClient = serviceCollection.BuildServiceProvider().GetService<TypedClient>();
+
+            Assert.NotNull(typedClient);
+            Assert.NotNull(typedClient.RestClient);
+            Assert.IsInstanceOf<RestClient>(typedClient.RestClient);
+        }
+
+        [Test]
+        public async Task AddRestClientTClient_WithBaseUriAndHeaders_RequestUsesThem()
+        {
+            var serviceCollection = new ServiceCollection();
+            HttpRequestMessage lastRequest = null;
+
+            serviceCollection.AddRestClient<TypedClient>("http://dalsoft.co.uk/typed", new Headers(new { UserAgent = "MyClient" }))
+                .UseNoDefaultHandlers()
+                .UseUnitTestHandler(request => { lastRequest = request; });
+
+            var typedClient = serviceCollection.BuildServiceProvider().GetService<TypedClient>();
+            await typedClient.GetUsers();
+
+            Assert.That(lastRequest.RequestUri.ToString(), Is.EqualTo("http://dalsoft.co.uk/typed/users"));
+            Assert.That(lastRequest.Headers.UserAgent.ToString(), Is.EqualTo("MyClient"));
+        }
+
+        [Test]
+        public void AddRestClientTClient_RegisteredTwice_ThrowsInvalidOperation()
+        {
+            var serviceCollection = new ServiceCollection();
+            serviceCollection.AddRestClient<TypedClient>("http://dalsoft.co.uk");
+            serviceCollection.AddRestClient<TypedClient>("http://dalsoft.co.uk");
+
+            var serviceProvider = serviceCollection.BuildServiceProvider();
+
+            Assert.Throws<InvalidOperationException>(() => serviceProvider.GetService<TypedClient>());
+        }
+
+        [Test]
+        public void AddRestClientTClientTImplementation_Resolve_ReturnsImplementation()
+        {
+            var serviceCollection = new ServiceCollection();
+            serviceCollection.AddRestClient<ITypedClient, TypedClient>("http://dalsoft.co.uk");
+
+            var typedClient = serviceCollection.BuildServiceProvider().GetService<ITypedClient>();
+
+            Assert.IsInstanceOf<TypedClient>(typedClient);
+            Assert.NotNull(typedClient.RestClient);
+        }
+
+        [Test]
+        public void AddRestClientTClient_ClientWithExtraDependency_ResolvesViaActivatorUtilities()
+        {
+            var serviceCollection = new ServiceCollection();
+            serviceCollection.AddSingleton(new Dependency());
+            serviceCollection.AddRestClient<TypedClientWithDependency>("http://dalsoft.co.uk");
+
+            var typedClient = serviceCollection.BuildServiceProvider().GetService<TypedClientWithDependency>();
+
+            Assert.NotNull(typedClient.RestClient);
+            Assert.NotNull(typedClient.Dependency);
+        }
+
+        [Test]
+        public async Task AddRestClientTClient_TwoTypedClients_EachGetsOwnBaseUri()
+        {
+            var serviceCollection = new ServiceCollection();
+            HttpRequestMessage lastRequest = null;
+
+            serviceCollection.AddRestClient<TypedClient>("http://dalsoft.co.uk/one").UseNoDefaultHandlers().UseUnitTestHandler(request => { lastRequest = request; });
+            serviceCollection.AddRestClient<TypedClientWithDependency>("http://dalsoft.co.uk/two").UseNoDefaultHandlers().UseUnitTestHandler(request => { lastRequest = request; });
+            serviceCollection.AddSingleton(new Dependency());
+
+            var serviceProvider = serviceCollection.BuildServiceProvider();
+
+            await serviceProvider.GetService<TypedClient>().GetUsers();
+            Assert.That(lastRequest.RequestUri.ToString(), Is.EqualTo("http://dalsoft.co.uk/one/users"));
+
+            await serviceProvider.GetService<TypedClientWithDependency>().RestClient.Resource("users").Get();
+            Assert.That(lastRequest.RequestUri.ToString(), Is.EqualTo("http://dalsoft.co.uk/two/users"));
+        }
+
+        [Test]
+        public async Task AddRestClientTClient_ReturnsConfig_UseHandlerAppliesToThatClientOnly()
+        {
+            var serviceCollection = new ServiceCollection();
+            var typedHandlerCalls = 0;
+            HttpRequestMessage lastRequest = null;
+
+            serviceCollection.AddRestClient<TypedClient>("http://dalsoft.co.uk/one")
+                .UseNoDefaultHandlers()
+                .UseHandler((request, token, next) => { typedHandlerCalls++; return next(request, token); })
+                .UseUnitTestHandler(request => { lastRequest = request; });
+            serviceCollection.AddRestClient("http://dalsoft.co.uk/two").UseNoDefaultHandlers().UseUnitTestHandler(request => { lastRequest = request; });
+
+            var serviceProvider = serviceCollection.BuildServiceProvider();
+
+            await serviceProvider.GetService<TypedClient>().GetUsers();
+            dynamic defaultClient = serviceProvider.GetService<IRestClientFactory>().CreateClient();
+            await defaultClient.Get();
+
+            Assert.That(typedHandlerCalls, Is.EqualTo(1));
+            Assert.That(lastRequest.RequestUri.ToString(), Is.EqualTo("http://dalsoft.co.uk/two"));
+        }
+
+        [Test]
+        public void AddRestClientTClient_Lifetime_IsTransient()
+        {
+            var serviceCollection = new ServiceCollection();
+            serviceCollection.AddRestClient<TypedClient>("http://dalsoft.co.uk");
+
+            var descriptor = serviceCollection.Single(_ => _.ServiceType == typeof(TypedClient));
+            var serviceProvider = serviceCollection.BuildServiceProvider();
+
+            Assert.That(descriptor.Lifetime, Is.EqualTo(ServiceLifetime.Transient));
+            Assert.AreNotSame(serviceProvider.GetService<TypedClient>(), serviceProvider.GetService<TypedClient>());
+        }
+
+        [Test]
+        public void AddRestClientTClient_CtorTakesConcreteRestClient_StillResolves()
+        {
+            var serviceCollection = new ServiceCollection();
+            serviceCollection.AddRestClient<TypedClientWithConcreteRestClient>("http://dalsoft.co.uk");
+
+            var typedClient = serviceCollection.BuildServiceProvider().GetService<TypedClientWithConcreteRestClient>();
+
+            Assert.NotNull(typedClient.RestClient);
+            Assert.That(typedClient.RestClient.BaseUri, Is.EqualTo("http://dalsoft.co.uk"));
+        }
+
+        public interface ITypedClient { IRestClient RestClient { get; } }
+
+        public class TypedClient : ITypedClient
+        {
+            public IRestClient RestClient { get; }
+            public TypedClient(IRestClient restClient) => RestClient = restClient;
+            public Task<dynamic> GetUsers() => RestClient.Resource("users").Get();
+        }
+
+        public class Dependency { }
+
+        public class TypedClientWithDependency
+        {
+            public IRestClient RestClient { get; }
+            public Dependency Dependency { get; }
+            public TypedClientWithDependency(IRestClient restClient, Dependency dependency) { RestClient = restClient; Dependency = dependency; }
+        }
+
+        public class TypedClientWithConcreteRestClient
+        {
+            public RestClient RestClient { get; }
+            public TypedClientWithConcreteRestClient(RestClient restClient) => RestClient = restClient;
+        }
     }
 }

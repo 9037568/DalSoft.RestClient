@@ -1,4 +1,4 @@
-# DalSoft .NET REST Client for all platforms
+﻿# DalSoft .NET REST Client for all platforms
 
 ### `If you find this repo / package useful all I ask is you please star it ⭐`
 > ### Do you or the company you work for benefit from the tools I build? <br /> If so please consider [Becoming a Sponsor](https://github.com/sponsors/dalsoft) it would be greatly appreciated ❤️ 
@@ -20,7 +20,6 @@
 * [Post Forms](https://restclient.dalsoft.io/docs/formurlencodedhandler/)
 * [Post Files](https://restclient.dalsoft.io/docs/multipartformdatahandler/)
 * [Retry Requests](https://restclient.dalsoft.io/docs/retrying-transient-errors/)
-* [Twitter SDK](https://restclient.dalsoft.io/docs/twitterandler/)
 * [Raw HTTP](https://restclient.dalsoft.io/docs/content-other-than-json/)
 * [Passthrough HttpClient](https://www.dalsoft.co.uk/blog/index.php/2019/08/04/csharp-rest-client-now-with-static-typing/#HttpClient)
 * [Authorization](https://www.dalsoft.co.uk/blog/index.php/2019/08/04/csharp-rest-client-now-with-static-typing/#Authorization_method)
@@ -30,8 +29,8 @@
 
 RestClient targets .NET Standard 2.0 therefore **supports Windows, Linux, Mac and Xamarin (iOS, Android and UWP)**.
 
-.NET 5.0 and .NET 6.0 supported
-All versions of .NET Core supported 
+Targets .NET Standard 2.0 and .NET 8.0
+All versions of .NET Core / .NET 5+ supported
 All versions of legacy .NET Framework > 4.6.1 supported
 
 ## Getting Started
@@ -79,6 +78,7 @@ Console.WriteLine(user.name);
  
 ## Recent Releases 
  
+* Version 5.1 Typed clients via `AddRestClient<TClient>()` and an MCP (Model Context Protocol) handler - see below
 * Version 5.0 System.Text.Json by default - see breaking changes below
 * [Version 4.0 Static Typing and Resource Expressions](http://www.dalsoft.co.uk/blog/index.php/2019/08/04/csharp-rest-client-now-with-static-typing)
 * [Version 3.3.0 IHttpClientFactory Goodness](https://restclient.dalsoft.io/docs/ihttpclientfactory/)
@@ -91,6 +91,60 @@ Originally created to remove the boilerplate code involved in making REST reques
 
 RestClient is biased towards posting and returning JSON - if you don't provide Accept and Content-Type headers then they are set to application/json by default [See Working with non JSON content](https://restclient.dalsoft.io/docs/content-other-than-json/).
 
+
+## Version 5.1 Typed Clients
+
+Register a typed client the same way you would with `AddHttpClient<TClient>()` and take `IRestClient` in the constructor - no `HttpClientWrapper` plumbing:
+
+```cs
+services.AddRestClient<GitHubClient>("https://api.github.com", new Headers(new { UserAgent = "MyClient" }))
+    .UseRetryHandler(); // Any Use*Handler applies to this client only
+
+public class GitHubClient
+{
+    private readonly IRestClient _restClient;
+
+    public GitHubClient(IRestClient restClient) => _restClient = restClient;
+
+    public Task<List<Repository>> GetRepositories(string user) =>
+        _restClient.Resource($"users/{user}/repos").Get<List<Repository>>();
+}
+```
+
+`AddRestClient<TClient, TImplementation>()` registers an interface with its implementation. Typed clients are transient (like `AddHttpClient<TClient>()`), can take other dependencies in their constructor, and are unit tested with `UseUnitTestHandler()` like everything else. Outside of DI just use `new RestClient("https://api.github.com", new Headers(new { UserAgent = "MyClient" }))`.
+
+## Version 5.1 MCP (Model Context Protocol)
+
+`UseMcpHandler()` turns a RestClient into an MCP client using the [Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports). Point the base uri at the MCP endpoint and go - the session is initialized lazily on the first call, `Mcp-Session-Id` / `MCP-Protocol-Version` headers are tracked for you, SSE responses are read until the JSON-RPC response arrives, and the JSON-RPC envelope is unwrapped so you just get the `result`:
+
+```cs
+IRestClient mcp = new RestClient("https://example.com/mcp", new Config().UseMcpHandler());
+
+var tools = await mcp.ListTools();
+var result = await mcp.CallTool("echo", new { message = "hello" });
+string text = result.content[0].text;
+
+// Or strongly typed
+var typed = await mcp.CallTool<CallToolResult>("echo", new { message = "hello" });
+
+// Tools usually return JSON as text, CallToolJson parses it (or uses structuredContent) and throws McpException on isError
+var quotes = await mcp.CallToolJson("get_quote", new { symbols = new[] { "MSFT" } });
+Console.WriteLine(quotes[0].regularMarketPrice); // or CallToolJson<Quote[]>(...) for strongly typed
+
+// Anything else is one line
+var templates = await mcp.McpRequest("resources/templates/list");
+```
+
+Helpers: `Ping()`, `ListTools()`, `CallTool()`, `CallToolJson()`, `ListResources()`, `ReadResource()`, `ListPrompts()`, `GetPrompt()` and `McpRequest(method, params)`, all with `<TReturns>` twins. They are extension methods on `IRestClient`, so declare the variable as `IRestClient` rather than `dynamic`. JSON-RPC errors throw `McpException` with `Code`, `Message` and `Data`. Server notifications sent on a response stream (for example `notifications/progress`) are surfaced via `McpHandlerOptions.OnNotification`.
+
+With DI the session is shared across `IHttpClientFactory` handler rotation, and combines with typed clients:
+
+```cs
+services.AddRestClient<MyMcpClient>("https://example.com/mcp")
+    .UseMcpHandler(new McpHandlerOptions { ClientName = "MyApp", ClientVersion = "1.0" });
+```
+
+Notes: authentication is whatever you already use (`Authorization()`, headers or your own handler). Long running tool calls are bound by `Config.Timeout` (100 seconds by default). Put `UseRetryHandler()` *after* `UseMcpHandler()` if you use both, otherwise a retry would replay the tool call. Not in 5.1: the client side GET listening stream, `Last-Event-ID` resume, sampling/elicitation (answered with `-32601 Method not found`) and the legacy 2024-11-05 HTTP+SSE transport.
 
 ## Version 5.0 Breaking Changes
 

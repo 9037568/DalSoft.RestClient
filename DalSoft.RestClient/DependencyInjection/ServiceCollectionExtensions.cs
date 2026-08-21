@@ -34,5 +34,37 @@ namespace DalSoft.RestClient.DependencyInjection
 
             return config;
         }
+
+        /// <summary>Registers a typed client, TClient is resolved transiently with a configured IRestClient (or RestClient) injected into its constructor</summary>
+        public static RestClientFactoryConfig AddRestClient<TClient>(this IServiceCollection services, string baseUri) where TClient : class
+        {
+            return services.AddRestClient<TClient, TClient>(baseUri, null);
+        }
+
+        public static RestClientFactoryConfig AddRestClient<TClient>(this IServiceCollection services, string baseUri, Headers defaultRequestHeaders) where TClient : class
+        {
+            return services.AddRestClient<TClient, TClient>(baseUri, defaultRequestHeaders);
+        }
+
+        public static RestClientFactoryConfig AddRestClient<TClient, TImplementation>(this IServiceCollection services, string baseUri) where TClient : class where TImplementation : class, TClient
+        {
+            return services.AddRestClient<TClient, TImplementation>(baseUri, null);
+        }
+
+        public static RestClientFactoryConfig AddRestClient<TClient, TImplementation>(this IServiceCollection services, string baseUri, Headers defaultRequestHeaders) where TClient : class where TImplementation : class, TClient
+        {
+            var name = GetTypedClientName<TClient>();
+            var config = services.AddRestClient(name, baseUri, defaultRequestHeaders);
+
+            services.AddTransient<TClient>(serviceProvider =>
+            {
+                var restClient = serviceProvider.GetRequiredService<IRestClientFactory>().CreateClient(name);
+                return ActivatorUtilities.CreateInstance<TImplementation>(serviceProvider, restClient); // Satisfies both IRestClient and RestClient ctor parameters
+            });
+
+            return config;
+        }
+
+        internal static string GetTypedClientName<TClient>() => typeof(TClient).FullName;
     }
 }

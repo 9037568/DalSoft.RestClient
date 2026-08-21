@@ -11,6 +11,7 @@ using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
 using DalSoft.RestClient.Serialization;
 using Newtonsoft.Json;
+using DalSoft.RestClient.Handlers.Mcp;
 using NUnit.Framework;
 using System.Text.Json;
 
@@ -211,17 +212,38 @@ namespace DalSoft.RestClient.Test.Unit.DependencyInjection
         }
 
         [Test]
-        public void UseTwitterHandler_AddHandlers_CorrectlyAddHandlers()
+        public void UseMcpHandler_AddHandlers_CorrectlyAddHandlers()
         {
-           var services = new ServiceCollection();
+            var services = new ServiceCollection();
 
             services.AddRestClient(Name, "http://dalsoft.co.uk")
-                .UseTwitterHandler(consumerKey:"consumerKey", consumerKeySecret:"consumerKeySecret", accessToken:"accessToken", accessTokenSecret:"accessTokenSecret");
-            
-            var httpClientFactoryOptions = services.Where(_ => _.ServiceType == typeof(IConfigureOptions<HttpClientFactoryOptions>))
-                .Select(_=>_.ImplementationInstance).Cast<ConfigureNamedOptions<HttpClientFactoryOptions>>().ToList();
+                .UseMcpHandler();
 
-            Assert.That(httpClientFactoryOptions.Count, Is.EqualTo(2)); //DefaultJsonHandler & UseTwitterHandler
-         }
+            var httpClientFactoryOptions = services.Where(_ => _.ServiceType == typeof(IConfigureOptions<HttpClientFactoryOptions>))
+                .Select(_ => _.ImplementationInstance).Cast<ConfigureNamedOptions<HttpClientFactoryOptions>>().ToList();
+
+            Assert.That(httpClientFactoryOptions.Count, Is.EqualTo(2)); //DefaultJsonHandler & UseMcpHandler
+        }
+
+        [Test]
+        public async Task UseMcpHandler_TwoClientsCreated_ShareTheSameSession()
+        {
+            var services = new ServiceCollection();
+            var server = new Handlers.Mcp.FakeMcpServer();
+
+            services.AddRestClient(Name, "http://dalsoft.co.uk/mcp")
+                .UseMcpHandler()
+                .UseUnitTestHandler(server.Handle);
+
+            var restClientFactory = services.BuildServiceProvider().GetService<IRestClientFactory>();
+
+            IRestClient client1 = restClientFactory.CreateClient(Name);
+            IRestClient client2 = restClientFactory.CreateClient(Name);
+            await client1.Ping();
+            await client2.Ping();
+
+            Assert.That(server.CountOf("initialize"), Is.EqualTo(1)); // Session shared across handler instances
+            Assert.That(server.CountOf("ping"), Is.EqualTo(2));
+        }
     }
 }
