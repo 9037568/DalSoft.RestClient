@@ -19,12 +19,12 @@ namespace DalSoft.RestClient.Commands
                 throw new ArgumentException("Please provide a query");
 
             if (args.Length != 1)
-                throw new ArgumentException("Query has one argument");
+                throw new ArgumentException("Query may not have more than one argument");
         }
 
         protected override object Handle(object[] args, MemberAccessWrapper next)
         {
-           var queryString = ToQueryString(args[0].FlattenObjectToKeyValuePairs<string>(includeThisType: Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime));
+            var queryString = ToQueryString(args[0].FlattenToKeyValuePairs<string>(includeThisType: Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime));
 
             return new MemberAccessWrapper
             (

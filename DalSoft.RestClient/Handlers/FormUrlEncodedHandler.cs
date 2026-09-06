@@ -14,7 +14,7 @@ namespace DalSoft.RestClient.Handlers
                 var content = request.GetContent();
                 request.Content = content == null ? null : new FormUrlEncodedContent
                 (
-                    content.FlattenObjectToKeyValuePairs<string>(includeThisType:Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime)
+                    content.FlattenToKeyValuePairs<string>(includeThisType:Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime)
                 );
             }
 

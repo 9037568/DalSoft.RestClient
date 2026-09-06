@@ -36,7 +36,7 @@ namespace DalSoft.RestClient.Handlers
             var boundry = contentType.Length > 1 ? contentType.SingleOrDefault(_=>_.Contains("boundary="))?.Replace("boundary=", string.Empty).Replace("\"", string.Empty) : null;
             var multipartFormDataContent = contentType.Any(_ => _.Contains("boundary=")) ? new MultipartFormDataContent(boundry) : new MultipartFormDataContent();
 
-            var formData = content.FlattenObjectToKeyValuePairs<object>(includeThisType:Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTimeOrByteArrayOrStream);
+            var formData = content.FlattenToKeyValuePairs<object>(includeThisType:Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTimeOrByteArrayOrStream);
 
             foreach (var pairs in formData.GroupBy(_ => _.Key.Split(".".ToCharArray()).Length))
             {

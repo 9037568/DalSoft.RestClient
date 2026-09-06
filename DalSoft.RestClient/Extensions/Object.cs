@@ -18,67 +18,94 @@ namespace DalSoft.RestClient.Extensions
             return PropertyCache.GetOrAdd(type, t => t.GetProperties());
         }
 
-        /// <summary>Returns a List KeyValuePair to pass into FormUrlEncodedContent supports complex objects People[0]First=Darran&amp;People[0]Last=Darran</summary>
-        internal static List<KeyValuePair<string, TValue>> FlattenObjectToKeyValuePairs<TValue>(
-            this object o,
-            Func<TypeInfo, bool> includeThisType,
-            List<KeyValuePair<string, TValue>> nameValueCollection = null, 
-            string prefix = null, int recrusions = 0) 
+        /// <summary>
+        /// Flattens into a list of key/value pairs.
+        /// </summary>
+        public static IEnumerable<KeyValuePair<string, object>> FlattenToKeyValuePairs(
+            this object obj,
+            Func<Type, bool> includeThisType,
+            string prefix = null)
         {
-            const int maxRecrusions = 30;
-            recrusions = prefix == null ? 0 : recrusions + 1;
-            if (recrusions > maxRecrusions) throw new InvalidOperationException("Object supplied to be UrlEncoded is nested too deeply");
+            if (obj == null)
+                yield break;
 
-            nameValueCollection = nameValueCollection ?? new List<KeyValuePair<string, TValue>>();
+            var type = obj.GetType();
 
-            foreach (var property in o.GetType().GetCachedProperties())
+            // 1. Leaf value: primitive / value type / string / Guid / DateTime etc.
+            if (includeThisType(type))
             {
-                var propertyName = prefix == null ? property.Name : $"{prefix}.{property.Name}";
-                var propertyValue = property.GetValue(o);
-
-                if (propertyValue == null) continue;
-
-                if (includeThisType(property.PropertyType.GetTypeInfo()))
-                {
-                    nameValueCollection.Add(new KeyValuePair<string, TValue>(propertyName, (TValue)(typeof(TValue) == typeof(string) ? propertyValue.FormatAsString() : propertyValue)));
-                }
-                else if (propertyValue is IEnumerable)
-                {
-                    var enumerable = ((IEnumerable)propertyValue).Cast<object>().ToArray();
-
-                    for (var i = 0; i < enumerable.Length; i++)
-                    {
-                        if (includeThisType(enumerable[i].GetType().GetTypeInfo())) 
-                        { 
-                            nameValueCollection.Add(new KeyValuePair<string, TValue>(propertyName, (TValue)(typeof(TValue) == typeof(string) ? enumerable[i].FormatAsString() : enumerable[i])));
-                            continue;
-                        }
-
-                        foreach (var propertyItem in enumerable[i].GetType().GetCachedProperties())
-                        {
-                            var propertyItemName = $"{propertyName}[{i}].{propertyItem.Name}";
-                            var propertyItemValue = propertyItem.GetValue(enumerable[i]);
-
-                            if (propertyItemValue == null) continue;
-
-                            if (includeThisType(propertyItem.PropertyType.GetTypeInfo()))
-                            {
-                                nameValueCollection.Add(new KeyValuePair<string, TValue>(propertyItemName, (TValue)(typeof(TValue) == typeof(string) ? propertyItemValue.FormatAsString() : propertyItemValue)));
-                            }
-                            else
-                            {
-                                FlattenObjectToKeyValuePairs<TValue>(propertyItemValue, includeThisType, nameValueCollection, propertyItemName, recrusions);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    FlattenObjectToKeyValuePairs<TValue>(propertyValue, includeThisType, nameValueCollection, propertyName, recrusions);
-                }
+                yield return new KeyValuePair<string, object>(prefix ?? string.Empty, obj);
+                yield break;
             }
 
-            return nameValueCollection;
+            // 2. Dictionary support (IDictionary)
+            if (obj is IDictionary dict)
+            {
+                foreach (var key in dict.Keys)
+                {
+                    var value = dict[key];
+                    if (value == null)
+                        continue;
+
+                    var keyString = key.ToString();
+                    var childPrefix = string.IsNullOrEmpty(prefix)
+                        ? keyString
+                        : $"{prefix}.{keyString}";
+
+                    foreach (var kvp in FlattenToKeyValuePairs(value, includeThisType, childPrefix))
+                    {
+                        yield return kvp;
+                    }
+                }
+
+                yield break;
+            }
+
+            // 3. Enumerable support (arrays, lists, etc.) but NOT string
+            if (obj is IEnumerable enumerable && !(obj is string))
+            {
+                var index = 0;
+                foreach (var item in enumerable)
+                {
+                    if (item == null)
+                    {
+                        index++;
+                        continue;
+                    }
+
+                    var childPrefix = string.IsNullOrEmpty(prefix)
+                        ? index.ToString()
+                        : $"{prefix}[{index}]";
+
+                    foreach (var kvp in FlattenToKeyValuePairs(item, includeThisType, childPrefix))
+                    {
+                        yield return kvp;
+                    }
+
+                    index++;
+                }
+
+                yield break;
+            }
+
+            // 4. Complex object: reflect properties (anonymous types, POCOs, etc.)
+            var properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
+            foreach (var property in properties)
+            {
+                var value = property.GetValue(obj);
+                if (value == null)
+                    continue;
+
+                var propName = property.Name;
+                var childPrefix = string.IsNullOrEmpty(prefix)
+                    ? propName
+                    : $"{prefix}.{propName}";
+
+                foreach (var kvp in FlattenToKeyValuePairs(value, includeThisType, childPrefix))
+                {
+                    yield return kvp;
+                }
+            }
         }
 
         internal static string FormatAsString(this object o)
