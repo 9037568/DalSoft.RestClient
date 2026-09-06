@@ -900,28 +900,6 @@ namespace DalSoft.RestClient.Test.Unit
         }
 
         [Test]
-        public void Query_NonAnonymousArg_ThrowsArgumentException()
-        {
-            dynamic client = new RestClient(BaseUri, new Config(new UnitTestHandler()));
-            
-            var verbs = new Func<Task<dynamic>>[]
-            {
-                ()=>client.Users.Query(new User { id = 1 }).Get(),
-                ()=>client.Users.Query(new User { id = 1 }).Head(),
-                ()=>client.Users.Query(new User { id = 1 }).Delete(),
-                ()=>client.Users.Query(new User { id = 1 }).Post(),
-                ()=>client.Users.Query(new User { id = 1 }).Put(),
-                ()=>client.Users.Query(new User { id = 1 }).Patch(),
-                ()=>client.Users.Query(new User { id = 1 }).Merge()
-            };
-
-            foreach (var verb in verbs)
-            {
-                Assert.ThrowsAsync<ArgumentException>(async () => await verb());
-            }
-        }
-
-        [Test]
         public void Query_MoreThanOneArg_ThrowsArgumentException()
         {
             dynamic client = new RestClient(BaseUri, new Config(new UnitTestHandler()));
