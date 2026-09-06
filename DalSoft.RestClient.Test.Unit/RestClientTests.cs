@@ -120,9 +120,6 @@ namespace DalSoft.RestClient.Test.Unit
             list.Add(89);
             list.Add(true);
 
-// Access the compiled URI from the RequestMessage
-string fullUrlWithParams = response.HttpResponseMessage.RequestMessage.RequestUri.ToString();
-
             if (callDynamically)
             {
                 Console.WriteLine("Actual generated query: " + client.Users.Query(list));
