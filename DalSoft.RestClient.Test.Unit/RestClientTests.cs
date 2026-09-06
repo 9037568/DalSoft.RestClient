@@ -76,6 +76,65 @@ namespace DalSoft.RestClient.Test.Unit
 
 
         [TestCase(true), TestCase(false)]
+        public async Task Query_ShouldSerializeDictToQueryString(bool callDynamically)
+        {
+            var mockHttpClient = new Mock<IHttpClientWrapper>();
+
+            mockHttpClient
+                .Setup(_ => _.Send(HttpMethod.Get, It.IsAny<Uri>(), It.IsAny<IDictionary<string, string>>(), It.IsAny<object>()))
+                .Returns(Task.FromResult(new HttpResponseMessage { RequestMessage = new HttpRequestMessage()}));
+
+            dynamic client = new RestClient(mockHttpClient.Object, BaseUri);
+
+            var dict = new Dictionary<string, object>();
+            dict.add("Id", "test");
+            dict.add("another", 1);
+
+            if (callDynamically)
+                await client.Users.Query(dict).Get();
+            else
+                await ((IRestClient)client).Query(dict).Get();
+
+            mockHttpClient.Verify(_ => _.Send
+            (
+                HttpMethod.Get,
+                It.Is<Uri>(__ => __ == new Uri($"{BaseUri}{(callDynamically ? "/Users" : string.Empty)}?Id=test&another=1")),
+                It.IsAny<IDictionary<string, string>>(),
+                It.IsAny<object>()
+            ));
+        }
+
+        [TestCase(true), TestCase(false)]
+        public async Task Query_ShouldSerializeListToQueryString(bool callDynamically)
+        {
+            var mockHttpClient = new Mock<IHttpClientWrapper>();
+
+            mockHttpClient
+                .Setup(_ => _.Send(HttpMethod.Get, It.IsAny<Uri>(), It.IsAny<IDictionary<string, string>>(), It.IsAny<object>()))
+                .Returns(Task.FromResult(new HttpResponseMessage { RequestMessage = new HttpRequestMessage()}));
+
+            dynamic client = new RestClient(mockHttpClient.Object, BaseUri);
+
+            var list = new List<object>();
+            list.add("string");
+            list.add(89);
+            list.add(true);
+
+            if (callDynamically)
+                await client.Users.Query(list).Get();
+            else
+                await ((IRestClient)client).Query(dict).Get();
+
+            mockHttpClient.Verify(_ => _.Send
+            (
+                HttpMethod.Get,
+                It.Is<Uri>(__ => __ == new Uri($"{BaseUri}{(callDynamically ? "/Users" : string.Empty)}?list=string&list=89&list=true")),
+                It.IsAny<IDictionary<string, string>>(),
+                It.IsAny<object>()
+            ));
+        }
+
+        [TestCase(true), TestCase(false)]
         public async Task Query_StringThatRequiresEncoding_EncodesStringCorrectly(bool callDynamically)
         {
             var mockHttpClient = new Mock<IHttpClientWrapper>();
