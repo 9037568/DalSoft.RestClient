@@ -108,11 +108,20 @@ namespace DalSoft.RestClient.Test.Unit
         public async Task Query_ShouldSerializeListToQueryString(bool callDynamically)
         {
             var mockHttpClient = new Mock<IHttpClientWrapper>();
+						Uri actualUri = null;
+						
+            //mockHttpClient
+            //    .Setup(_ => _.Send(HttpMethod.Get, It.IsAny<Uri>(), It.IsAny<IDictionary<string, string>>(), It.IsAny<object>()))
+            //    .Returns(Task.FromResult(new HttpResponseMessage { RequestMessage = new HttpRequestMessage()}));
 
-            mockHttpClient
-                .Setup(_ => _.Send(HttpMethod.Get, It.IsAny<Uri>(), It.IsAny<IDictionary<string, string>>(), It.IsAny<object>()))
-                .Returns(Task.FromResult(new HttpResponseMessage { RequestMessage = new HttpRequestMessage()}));
-
+						mockHttpClient
+    						.Setup(_ => _.Send(HttpMethod.Get, It.IsAny<Uri>(), It.IsAny<IDictionary<string, string>>(), It.IsAny<object>()))
+    						.Returns((HttpMethod method, Uri uri, IDictionary<string, string> headers, object body) => 
+    						{
+        						actualUri = uri; // Intercepts the actual URI right here
+        						return Task.FromResult(new HttpResponseMessage { RequestMessage = new HttpRequestMessage() });
+    						});
+    
             dynamic client = new RestClient(mockHttpClient.Object, BaseUri);
 
             var list = new List<object>();
@@ -134,19 +143,14 @@ namespace DalSoft.RestClient.Test.Unit
             mockHttpClient.Verify(_ => _.Send
             (
                 HttpMethod.Get,
-                It.Is<Uri>(__ => __ FailAndPrint(__)),
+                It.Is<Uri>(__ => __ .ToString().ToLower().Contains("89")),
                 //It.Is<Uri>(__ => __ == new Uri($"{BaseUri}{(callDynamically ? "/Users" : string.Empty)}?0=string&1=89&2=true")),
                 It.IsAny<IDictionary<string, string>>(),
                 It.IsAny<object>()
             ));
+            Assert.Fail($"The actual URL requested was: {actualUri}");
         }
 
-        private bool FailAndPrint(Uri uri)
-        {
-            Console.WriteLine("Final URL was: {uri}");
-            return true;
-        }
-        
         [TestCase(true), TestCase(false)]
         public async Task Query_StringThatRequiresEncoding_EncodesStringCorrectly(bool callDynamically)
         {
