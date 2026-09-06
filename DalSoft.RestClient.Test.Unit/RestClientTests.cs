@@ -121,9 +121,15 @@ namespace DalSoft.RestClient.Test.Unit
             list.Add(true);
 
             if (callDynamically)
+            {
+                Console.WriteLine("Actual generated URL: " + client.Users.Query(list));
                 await client.Users.Query(list).Get();
+            }
             else
+            {
+                Console.WriteLine("Actual generated URL: " + ((IRestClient)client).Query(list));
                 await ((IRestClient)client).Query(list).Get();
+            }
 
             mockHttpClient.Verify(_ => _.Send
             (
