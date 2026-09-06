@@ -82,7 +82,7 @@ namespace DalSoft.RestClient.Extensions
                     // Leaf values (primitives, strings, Guid, DateTime, etc) keep the same key repeated for each item,
                     // whereas complex items are indexed so their properties can be flattened separately.
                     var childPrefix = includeThisType(item.GetType())
-                        ? prefix
+                        ? (prefix ?? index.ToString())
                         : string.IsNullOrEmpty(prefix)
                             ? index.ToString()
                             : $"{prefix}[{index}]";
