@@ -20,9 +20,6 @@ namespace DalSoft.RestClient.Commands
 
             if (args.Length != 1)
                 throw new ArgumentException("Query has one argument");
-
-            if (args[0].GetType().Namespace != null)
-                throw new ArgumentException("Query must be a anonymous type");
         }
 
         protected override object Handle(object[] args, MemberAccessWrapper next)
