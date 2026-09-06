@@ -134,7 +134,7 @@ namespace DalSoft.RestClient.Test.Unit
             mockHttpClient.Verify(_ => _.Send
             (
                 HttpMethod.Get,
-                It.Is<Uri>(__ => __ .ToString().ToLower().Contains("89")),
+                It.Is<Uri>(__ => __ throw new Exception($"Failed URL: {__}")),
                 //It.Is<Uri>(__ => __ == new Uri($"{BaseUri}{(callDynamically ? "/Users" : string.Empty)}?0=string&1=89&2=true")),
                 It.IsAny<IDictionary<string, string>>(),
                 It.IsAny<object>()
