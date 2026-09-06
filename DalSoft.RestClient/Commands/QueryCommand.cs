@@ -24,7 +24,7 @@ namespace DalSoft.RestClient.Commands
 
         protected override object Handle(object[] args, MemberAccessWrapper next)
         {
-            var queryString = ToQueryString(args[0].FlattenToKeyValuePairs<string>(includeThisType: Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime));
+            var queryString = ToQueryString(args[0].FlattenToKeyValuePairs(includeThisType: Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime));
 
             return new MemberAccessWrapper
             (
