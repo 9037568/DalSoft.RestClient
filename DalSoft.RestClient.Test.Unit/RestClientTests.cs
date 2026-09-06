@@ -122,18 +122,19 @@ namespace DalSoft.RestClient.Test.Unit
 
             if (callDynamically)
             {
-                Console.WriteLine("Actual generated query: " + client.Users.Query(list).Query);
+                Console.WriteLine("Actual generated query: " + client.Users.Query(list));
                 await client.Users.Query(list).Get();
             }
             else
             {
-                Console.WriteLine("Actual generated query: " + ((IRestClient)client).Query(list).Query);
+                Console.WriteLine("Actual generated query: " + ((IRestClient)client).Query(list));
                 await ((IRestClient)client).Query(list).Get();
             }
 
             mockHttpClient.Verify(_ => _.Send
             (
                 HttpMethod.Get,
+                It.Is<Uri>(uri => { Console.WriteLine("Actual URI: " + uri); return true; }),
                 It.Is<Uri>(__ => __ == new Uri($"{BaseUri}{(callDynamically ? "/Users" : string.Empty)}?0=string&1=89&2=true")),
                 It.IsAny<IDictionary<string, string>>(),
                 It.IsAny<object>()
