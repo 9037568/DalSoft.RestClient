@@ -24,8 +24,14 @@ namespace DalSoft.RestClient.Extensions
         public static IEnumerable<KeyValuePair<string, object>> FlattenToKeyValuePairs(
             this object obj,
             Func<Type, bool> includeThisType,
-            string prefix = null)
+            string prefix = null,
+            int recursions = 0)
         {
+            const int maxRecursions = 30;
+            recursions = prefix == null ? 0 : recursions + 1;
+            if (recursions > maxRecursions)
+                throw new InvalidOperationException("Object supplied to be UrlEncoded is nested too deeply");
+
             if (obj == null)
                 yield break;
 
@@ -52,7 +58,7 @@ namespace DalSoft.RestClient.Extensions
                         ? keyString
                         : $"{prefix}.{keyString}";
 
-                    foreach (var kvp in FlattenToKeyValuePairs(value, includeThisType, childPrefix))
+                    foreach (var kvp in FlattenToKeyValuePairs(value, includeThisType, childPrefix, recursions))
                     {
                         yield return kvp;
                     }
@@ -73,11 +79,15 @@ namespace DalSoft.RestClient.Extensions
                         continue;
                     }
 
-                    var childPrefix = string.IsNullOrEmpty(prefix)
-                        ? index.ToString()
-                        : $"{prefix}[{index}]";
+                    // Leaf values (primitives, strings, Guid, DateTime, etc) keep the same key repeated for each item,
+                    // whereas complex items are indexed so their properties can be flattened separately.
+                    var childPrefix = includeThisType(item.GetType())
+                        ? prefix
+                        : string.IsNullOrEmpty(prefix)
+                            ? index.ToString()
+                            : $"{prefix}[{index}]";
 
-                    foreach (var kvp in FlattenToKeyValuePairs(item, includeThisType, childPrefix))
+                    foreach (var kvp in FlattenToKeyValuePairs(item, includeThisType, childPrefix, recursions))
                     {
                         yield return kvp;
                     }
@@ -101,7 +111,15 @@ namespace DalSoft.RestClient.Extensions
                     ? propName
                     : $"{prefix}.{propName}";
 
-                foreach (var kvp in FlattenToKeyValuePairs(value, includeThisType, childPrefix))
+                // Check the declared property type first (e.g. a property declared as Stream but holding a
+                // FileStream instance) so leaf types aren't reflected into by their concrete runtime type.
+                if (includeThisType(property.PropertyType))
+                {
+                    yield return new KeyValuePair<string, object>(childPrefix, value);
+                    continue;
+                }
+
+                foreach (var kvp in FlattenToKeyValuePairs(value, includeThisType, childPrefix, recursions))
                 {
                     yield return kvp;
                 }
@@ -116,19 +134,19 @@ namespace DalSoft.RestClient.Extensions
             return o.ToString();
         }
 
-        internal static bool IsValueTypeOrPrimitiveOrStringOrGuid(TypeInfo type)
+        internal static bool IsValueTypeOrPrimitiveOrStringOrGuid(Type type)
         {
-            return type.IsValueType || type.IsPrimitive || type.AsType() == typeof(string) || type.AsType() == typeof(Guid);
+            return type.IsValueType || type.IsPrimitive || type == typeof(string) || type == typeof(Guid);
         }
 
-        internal static bool IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime(TypeInfo type)
+        internal static bool IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime(Type type)
         {
-            return IsValueTypeOrPrimitiveOrStringOrGuid(type) || type.AsType() == typeof(DateTime);
+            return IsValueTypeOrPrimitiveOrStringOrGuid(type) || type == typeof(DateTime);
         }
 
-        internal static bool IsValueTypeOrPrimitiveOrStringOrGuidOrDateTimeOrByteArrayOrStream(TypeInfo type)
+        internal static bool IsValueTypeOrPrimitiveOrStringOrGuidOrDateTimeOrByteArrayOrStream(Type type)
         {
-            return IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime(type) || type.AsType() == typeof(byte[]) || type.AsType() == typeof(Stream);
+            return IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime(type) || type == typeof(byte[]) || type == typeof(Stream);
         }
     }
 }

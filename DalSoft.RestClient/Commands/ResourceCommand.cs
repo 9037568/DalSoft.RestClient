@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Reflection;
 using static DalSoft.RestClient.Extensions.Object;
 
 namespace DalSoft.RestClient.Commands
@@ -35,7 +34,7 @@ namespace DalSoft.RestClient.Commands
             if (args[0] == null)
                 return;
 
-            if (!IsValueTypeOrPrimitiveOrStringOrGuid(args[0].GetType().GetTypeInfo()))
+            if (!IsValueTypeOrPrimitiveOrStringOrGuid(args[0].GetType()))
                 throw new ArgumentException("Resource must be a primitive type, string or a Guid");
         }
     }

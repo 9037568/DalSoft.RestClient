@@ -1,4 +1,6 @@
-﻿using System.Net.Http;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using DalSoft.RestClient.Extensions;
@@ -15,6 +17,7 @@ namespace DalSoft.RestClient.Handlers
                 request.Content = content == null ? null : new FormUrlEncodedContent
                 (
                     content.FlattenToKeyValuePairs(includeThisType:Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime)
+                        .Select(kvp => new KeyValuePair<string, string>(kvp.Key, kvp.Value?.FormatAsString()))
                 );
             }
 

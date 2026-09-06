@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using DalSoft.RestClient.Extensions;
 using Object = DalSoft.RestClient.Extensions.Object;
@@ -24,7 +25,8 @@ namespace DalSoft.RestClient.Commands
 
         protected override object Handle(object[] args, MemberAccessWrapper next)
         {
-            var queryString = ToQueryString(args[0].FlattenToKeyValuePairs(includeThisType: Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime));
+            var queryString = ToQueryString(args[0].FlattenToKeyValuePairs(includeThisType: Object.IsValueTypeOrPrimitiveOrStringOrGuidOrDateTime)
+                .Select(kvp => new KeyValuePair<string, string>(kvp.Key, kvp.Value?.FormatAsString())));
 
             return new MemberAccessWrapper
             (
