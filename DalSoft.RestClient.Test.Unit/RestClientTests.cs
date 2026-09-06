@@ -87,8 +87,8 @@ namespace DalSoft.RestClient.Test.Unit
             dynamic client = new RestClient(mockHttpClient.Object, BaseUri);
 
             var dict = new Dictionary<string, object>();
-            dict.add("Id", "test");
-            dict.add("another", 1);
+            dict.Add("Id", "test");
+            dict.Add("another", 1);
 
             if (callDynamically)
                 await client.Users.Query(dict).Get();
@@ -116,14 +116,14 @@ namespace DalSoft.RestClient.Test.Unit
             dynamic client = new RestClient(mockHttpClient.Object, BaseUri);
 
             var list = new List<object>();
-            list.add("string");
-            list.add(89);
-            list.add(true);
+            list.Add("string");
+            list.Add(89);
+            list.Add(true);
 
             if (callDynamically)
                 await client.Users.Query(list).Get();
             else
-                await ((IRestClient)client).Query(dict).Get();
+                await ((IRestClient)client).Query(list).Get();
 
             mockHttpClient.Verify(_ => _.Send
             (
