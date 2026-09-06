@@ -122,12 +122,12 @@ namespace DalSoft.RestClient.Test.Unit
 
             if (callDynamically)
             {
-                Console.WriteLine("Actual generated URL: " + client.Users.Query(list));
+                Console.WriteLine("Actual generated query: " + client.Users.Query(list).Query);
                 await client.Users.Query(list).Get();
             }
             else
             {
-                Console.WriteLine("Actual generated URL: " + ((IRestClient)client).Query(list));
+                Console.WriteLine("Actual generated query: " + ((IRestClient)client).Query(list).Query);
                 await ((IRestClient)client).Query(list).Get();
             }
 
