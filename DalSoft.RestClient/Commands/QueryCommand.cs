@@ -52,7 +52,7 @@ namespace DalSoft.RestClient.Commands
 
         private static string Encode(string data)
         {
-            return string.IsNullOrEmpty(data) ? string.Empty : Uri.EscapeDataString(data).Replace("%20", "+");
+            return string.IsNullOrEmpty(data) ? string.Empty : Uri.EscapeDataString(data);
         }
     }
 }
